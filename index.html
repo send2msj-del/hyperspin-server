@@ -42,10 +42,10 @@
     <canvas id="gameCanvas"></canvas>
 
     <!-- Load socket.io from your Tailscale Funnel server instead of locally -->
-<script src="/socket.io/socket.io.js"></script>
+<script src="https://hyperspin-server.onrender.com/socket.io/socket.io.js"></script>
 <script>
     // Automatically use the current host (works for localhost, Render, or Tailscale)
-    const SERVER_URL = window.location.origin;
+    const SERVER_URL = "https://hyperspin-server.onrender.com";
     const socket = io(SERVER_URL, {
         transports: ["websocket", "polling"],
         reconnectionAttempts: Infinity,
