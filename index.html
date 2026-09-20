@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Spin.io by Mufaddal Jawadwala</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #ffffff; user-select: none; font-family: sans-serif; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #333; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 10; }
+        #leaderboard {
+            position: absolute; top: 20px; right: 20px; width: 200px;
+            background: rgba(255, 255, 255, 0.85); border-radius: 6px; border: 1px solid #ccc;
+            padding: 8px; font-size: 12px; color: #333; z-index: 10;
+        }
+        #leaderboard h3 { margin: 0 0 6px 0; text-align: center; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+        .leaderboard-row { display: flex; justify-content: space-between; padding: 2px 4px; }
+        .leaderboard-row.me { background: rgba(255, 51, 102, 0.2); font-weight: bold; border-radius: 4px; }
+        .leaderboard-divider { height: 1px; background: #bbb; margin: 6px 0; }
+        #death-screen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255, 255, 255, 0.9); display: none; flex-direction: column;
+            justify-content: center; align-items: center; color: #333; cursor: pointer; z-index: 20;
+        }
+        #death-screen h1 { font-size: 50px; margin: 0; color: #ff3366; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">RpPM: <span id="rpm">0</span></div>
+
+    <div id="leaderboard">
+        <h3>Leaderboard</h3>
+        <div id="leaderboard-entries"></div>
+    </div>
+
+    <div id="death-screen">
+        <h1>DESTROYED</h1>
+        <p>Tap anywhere to respawn</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Load socket.io from your Tailscale Funnel server instead of locally -->
+    <script src="https://desktop-7oqct6f.taild7a6bb.ts.net/socket.io/socket.io.js"></script>
+    <script>
+        // Connect explicitly to your Tailscale Funnel domain
+        const SERVER_URL = "https://desktop-7oqct6f.taild7a6bb.ts.net";
+        const socket = io(SERVER_URL, {
+            transports: ["websocket"],
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
+        });
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const deathScreen = document.getElementById('death-screen');
+        const lbEntries = document.getElementById('leaderboard-entries');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let gameState = { players: {}, bots: [], dots: [], minimap: [], MAP_SIZE: 3000, leaderboard: [], myRank: { rank: 0, rpm: 0 } };
+        let isBoosting = false;
+        let amIDead = false;
+        let currentZoom = 1.0;
+
+        let targetAngle = 0;
+        let lastSentAngle = -999;
+        let lastSentBoost = false;
+
+        // --- MOBILE INTERACTION METRICS ---
+        let touchJoystickId = null;
+        let touchBoostId = null;
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickCurrent = { x: 0, y: 0 };
+        let showJoystick = false;
+
+        // --- HYBRID INTERACTION EVENT LISTENERS ---
+        
+        // Desktop Fallbacks
+        window.addEventListener('mousemove', (e) => {
+            if (touchJoystickId === null) {
+                targetAngle = Math.atan2(e.clientY - canvas.height / 2, e.clientX - canvas.width / 2);
+            }
+        });
+        window.addEventListener('mousedown', (e) => { if(touchBoostId === null) isBoosting = true; });
+        window.addEventListener('mouseup', () => { if(touchBoostId === null) isBoosting = false; });
+
+        // Touch Core Engines
+        window.addEventListener('touchstart', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                let touch = e.changedTouches[i];
+                if (touch.clientX < window.innerWidth / 2 && touchJoystickId === null) {
+                    touchJoystickId = touch.identifier;
+                    joystickCenter = { x: touch.clientX, y: touch.clientY };
+                    joystickCurrent = { x: touch.clientX, y: touch.clientY };
+                    showJoystick = true;
+                } else if (touch.clientX >= window.innerWidth / 2 && touchBoostId === null) {
+                    touchBoostId = touch.identifier;
+                    isBoosting = true;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                let touch = e.touches[i];
+                if (touch.identifier === touchJoystickId) {
+                    joystickCurrent = { x: touch.clientX, y: touch.clientY };
+                    let dx = joystickCurrent.x - joystickCenter.x;
+                    let dy = joystickCurrent.y - joystickCenter.y;
+                    if (Math.hypot(dx, dy) > 5) {
+                        targetAngle = Math.atan2(dy, dx);
+                    }
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                let touch = e.changedTouches[i];
+                if (touch.identifier === touchJoystickId) {
+                    touchJoystickId = null;
+                    showJoystick = false;
+                } else if (touch.identifier === touchBoostId) {
+                    touchBoostId = null;
+                    isBoosting = false;
+                }
+            }
+        });
+
+        window.addEventListener('touchcancel', (e) => {
+            touchJoystickId = null;
+            touchBoostId = null;
+            showJoystick = false;
+            isBoosting = false;
+        });
+
+        setInterval(() => {
+            if (amIDead) return;
+            if (Math.abs(targetAngle - lastSentAngle) > 0.02 || isBoosting !== lastSentBoost) {
+                socket.emit('input', { angle: targetAngle, isBoosting: isBoosting });
+                lastSentAngle = targetAngle;
+                lastSentBoost = isBoosting;
+            }
+        }, 16); 
+
+        deathScreen.addEventListener('click', () => socket.emit('respawn'));
+        deathScreen.addEventListener('touchstart', () => socket.emit('respawn'));
+        
+        socket.on('spawned', () => { amIDead = false; deathScreen.style.display = 'none'; });
+        socket.on('died', () => { amIDead = true; deathScreen.style.display = 'flex'; });
+        socket.on('gameUpdate', (state) => gameState = state);
+
+        setInterval(() => {
+            if (!gameState.leaderboard) return;
+            let html = '';
+            let meOnBoard = false;
+
+            for (let i = 0; i < gameState.leaderboard.length; i++) {
+                let entry = gameState.leaderboard[i];
+                let isMe = entry.id === socket.id;
+                if (isMe) meOnBoard = true;
+                html += `<div class="leaderboard-row ${isMe ? 'me' : ''}">
+                    <span>${i + 1}. ${entry.id.substring(0,6)}</span>
+                    <span>${entry.rpm}</span>
+                </div>`;
+            }
+
+            if (!meOnBoard && !amIDead && gameState.myRank && gameState.myRank.rank > 0) {
+                html += `<div class="leaderboard-divider"></div>`;
+                html += `<div class="leaderboard-row me">
+                    <span>${gameState.myRank.rank}. ${socket.id.substring(0,6)}</span>
+                    <span>${gameState.myRank.rpm}</span>
+                </div>`;
+            }
+            lbEntries.innerHTML = html;
+        }, 200); 
+
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+            const size = 100;
+            ctx.beginPath();
+            for (let x = 0; x <= gameState.MAP_SIZE; x += size) { ctx.moveTo(x, 0); ctx.lineTo(x, gameState.MAP_SIZE); }
+            for (let y = 0; y <= gameState.MAP_SIZE; y += size) { ctx.moveTo(0, y); ctx.lineTo(gameState.MAP_SIZE, y); }
+            ctx.stroke();
+            ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 5;
+            ctx.strokeRect(0, 0, gameState.MAP_SIZE, gameState.MAP_SIZE);
+        }
+
+        function drawMinimap(me) {
+            const size = 100; const pad = 15;
+            const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            const mobileOffset = isMobile ? 80 : 0;
+            const mx = canvas.width - size - pad;
+            const my = canvas.height - size - pad - mobileOffset;
+            const scale = size / gameState.MAP_SIZE;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.fillRect(mx, my, size, size);
+            ctx.strokeStyle = '#ccc'; ctx.strokeRect(mx, my, size, size);
+
+            if (gameState.minimap) {
+                gameState.minimap.forEach(dot => {
+                    ctx.fillStyle = dot[2]; ctx.fillRect(mx + dot[0] * scale, my + dot[1] * scale, 2, 2);
+                });
+            }
+            if (me) {
+                ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(mx + me.x * scale, my + me.y * scale, 3, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        function drawVirtualJoystick() {
+            if (!showJoystick) return;
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.beginPath();
+            ctx.arc(joystickCenter.x, joystickCenter.y, 50, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+
+            let dx = joystickCurrent.x - joystickCenter.x;
+            let dy = joystickCurrent.y - joystickCenter.y;
+            let dist = Math.hypot(dx, dy);
+            let tx = joystickCurrent.x;
+            let ty = joystickCurrent.y;
+
+            if (dist > 50) {
+                tx = joystickCenter.x + (dx / dist) * 50;
+                ty = joystickCenter.y + (dy / dist) * 50;
+            }
+
+            ctx.beginPath();
+            ctx.arc(tx, ty, 22, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 51, 102, 0.6)';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let me = gameState.players[socket.id];
+            if (me) {
+                document.getElementById('rpm').innerText = Math.floor(me.rpm);
+                let targetZoom = 1.0 / (1.0 + Math.log10(me.rpm / 40) * 0.12);
+                targetZoom = Math.max(0.75, Math.min(1.0, targetZoom)); 
+                currentZoom += (targetZoom - currentZoom) * 0.02;
+            }
+
+            let camX = me ? me.x : gameState.MAP_SIZE / 2;
+            let camY = me ? me.y : gameState.MAP_SIZE / 2;
+
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(currentZoom, currentZoom);
+            ctx.translate(-camX, -camY);
+
+            drawGrid();
+
+            if (gameState.dots) {
+                gameState.dots.forEach(dot => {
+                    let radius = 4 + (Math.log10(Math.max(1, dot.value)) * 8);
+                    ctx.fillStyle = dot.color; ctx.beginPath(); ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2); ctx.fill();
+                });
+            }
+
+            const drawSpinner = (s, isMe) => {
+                ctx.save(); ctx.translate(s.x, s.y);
+                if (isMe) {
+                    ctx.beginPath(); ctx.arc(0, 0, s.radius + 40, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.03)'; ctx.lineWidth = 2; ctx.stroke();
+                }
+                ctx.rotate(s.angle); ctx.fillStyle = s.color;
+                for (let i = 0; i < 3; i++) {
+                    ctx.rotate((Math.PI * 2) / 3); ctx.beginPath(); ctx.arc(s.radius * 0.8, 0, s.radius * 0.45, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.fillStyle = isMe ? '#333' : '#999'; ctx.beginPath(); ctx.arc(0, 0, s.radius * 0.5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+
+                ctx.fillStyle = '#333'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(Math.floor(s.rpm), s.x, s.y + s.radius + 20);
+            };
+
+            if (gameState.bots) gameState.bots.forEach(b => drawSpinner(b, false));
+            for (let id in gameState.players) { drawSpinner(gameState.players[id], id === socket.id); }
+
+            ctx.restore();
+            
+            drawMinimap(me);
+            drawVirtualJoystick();
+
+            requestAnimationFrame(render);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        });
+
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
