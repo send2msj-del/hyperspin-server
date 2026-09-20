@@ -2,305 +2,490 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Spin.io by Mufaddal Jawadwala</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperSpin - Spinz.io Arena</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #ffffff; user-select: none; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #333; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 10; }
-        #leaderboard {
-            position: absolute; top: 20px; right: 20px; width: 200px;
-            background: rgba(255, 255, 255, 0.85); border-radius: 6px; border: 1px solid #ccc;
-            padding: 8px; font-size: 12px; color: #333; z-index: 10;
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
         }
-        #leaderboard h3 { margin: 0 0 6px 0; text-align: center; font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-        .leaderboard-row { display: flex; justify-content: space-between; padding: 2px 4px; }
-        .leaderboard-row.me { background: rgba(255, 51, 102, 0.2); font-weight: bold; border-radius: 4px; }
-        .leaderboard-divider { height: 1px; background: #bbb; margin: 6px 0; }
-        #death-screen { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(255, 255, 255, 0.9); display: none; flex-direction: column;
-            justify-content: center; align-items: center; color: #333; cursor: pointer; z-index: 20;
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
         }
-        #death-screen h1 { font-size: 50px; margin: 0; color: #ff3366; }
+
+        /* Main Menu Overlay */
+        #menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 10, 15, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .menu-box {
+            background: rgba(20, 20, 30, 0.8);
+            border: 2px solid rgba(0, 255, 204, 0.4);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            width: 320px;
+        }
+
+        .menu-box h1 {
+            color: #00ffcc;
+            margin-top: 0;
+            font-size: 32px;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .menu-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .menu-group label {
+            display: block;
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+
+        .menu-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        #play-btn {
+            background: #00ffcc;
+            color: #111;
+            border: none;
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        #play-btn:hover {
+            background: #00e6b8;
+            transform: scale(1.02);
+        }
+
+        /* HUD Overlay Elements */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            box-sizing: border-box;
+            padding: 20px;
+            display: none;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 10;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(5px);
+            pointer-events: auto;
+        }
+
+        #rpm-container {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        #leaderboard-container {
+            width: 220px;
+        }
+
+        #leaderboard-container h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 5px;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .leaderboard-row.me {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+
+        #minimap-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 160px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            pointer-events: auto;
+            display: none;
+        }
+
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
+    <!-- Socket.IO Client Library CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
-    <div id="ui">RPM: <span id="rpm">0</span></div>
-
-    <div id="leaderboard">
-        <h3>Leaderboard</h3>
-        <div id="leaderboard-entries"></div>
+    <!-- Main Menu Screen -->
+    <div id="menu-screen">
+        <div class="menu-box">
+            <h1>HYPERSPIN</h1>
+            <div class="menu-group">
+                <label for="username-input">Spinner Name</label>
+                <input type="text" id="username-input" maxlength="12" value="Spinner">
+            </div>
+            <button id="play-btn" onclick="joinGame()">ENTER ARENA</button>
+        </div>
     </div>
 
-    <div id="death-screen">
-        <h1>DESTROYED</h1>
-        <p>Tap anywhere to respawn</p>
+    <div id="hud">
+        <!-- RPM Counter Top Left -->
+        <div class="hud-box" id="rpm-container">
+            RPM: <span id="rpm">40</span>
+        </div>
+
+        <!-- Leaderboard Top Right -->
+        <div class="hud-box" id="leaderboard-container">
+            <h3>Leaderboard</h3>
+            <div id="leaderboard-entries">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
     </div>
 
+    <!-- Minimap Bottom Right -->
+    <div id="minimap-container">
+        <canvas id="minimapCanvas" width="160" height="160"></canvas>
+    </div>
+
+    <!-- Main Game Canvas -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Load socket.io from your Tailscale Funnel server instead of locally -->
-<script src="https://hyperspin-server.onrender.com/socket.io/socket.io.js"></script>
-<script>
-    // Automatically use the current host (works for localhost, Render, or Tailscale)
-    const SERVER_URL = "https://hyperspin-server.onrender.com";
-    const socket = io(SERVER_URL, {
-        transports: ["websocket", "polling"],
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000
-    });
+    <script>
+        const socket = io("https://hyperspin-server.onrender.com", {
+            transports: ['websocket', 'polling']
+        });
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const deathScreen = document.getElementById('death-screen');
-        const lbEntries = document.getElementById('leaderboard-entries');
-        
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const menuScreen = document.getElementById('menu-screen');
+        const hud = document.getElementById('hud');
+        const minimapContainer = document.getElementById('minimap-container');
 
-        let gameState = { players: {}, bots: [], dots: [], minimap: [], MAP_SIZE: 3000, leaderboard: [], myRank: { rank: 0, rpm: 0 } };
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let gameState = {
+            players: {},
+            bots: [],
+            dots: [],
+            boosters: [],
+            minimap: [],
+            leaderboard: [],
+            MAP_SIZE: 3000
+        };
+
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
         let isBoosting = false;
-        let amIDead = false;
-        let currentZoom = 1.0;
+        let isDead = false;
+        let gameStarted = false;
 
-        let targetAngle = 0;
-        let lastSentAngle = -999;
-        let lastSentBoost = false;
-
-        // --- MOBILE INTERACTION METRICS ---
-        let touchJoystickId = null;
-        let touchBoostId = null;
-        let joystickCenter = { x: 0, y: 0 };
-        let joystickCurrent = { x: 0, y: 0 };
-        let showJoystick = false;
-
-        // --- HYBRID INTERACTION EVENT LISTENERS ---
-        
-        // Desktop Fallbacks
-        window.addEventListener('mousemove', (e) => {
-            if (touchJoystickId === null) {
-                targetAngle = Math.atan2(e.clientY - canvas.height / 2, e.clientX - canvas.width / 2);
-            }
+        // Socket Event Handlers
+        socket.on('connect', () => {
+            console.log("Connected to server with ID:", socket.id);
         });
-        window.addEventListener('mousedown', (e) => { if(touchBoostId === null) isBoosting = true; });
-        window.addEventListener('mouseup', () => { if(touchBoostId === null) isBoosting = false; });
 
-        // Touch Core Engines
-        window.addEventListener('touchstart', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                let touch = e.changedTouches[i];
-                if (touch.clientX < window.innerWidth / 2 && touchJoystickId === null) {
-                    touchJoystickId = touch.identifier;
-                    joystickCenter = { x: touch.clientX, y: touch.clientY };
-                    joystickCurrent = { x: touch.clientX, y: touch.clientY };
-                    showJoystick = true;
-                } else if (touch.clientX >= window.innerWidth / 2 && touchBoostId === null) {
-                    touchBoostId = touch.identifier;
-                    isBoosting = true;
-                }
+        socket.on('spawned', (data) => {
+            console.log("Spawn confirmed with assigned ID:", data.assignedId);
+            isDead = false;
+            menuScreen.style.display = 'none';
+            hud.style.display = 'flex';
+            minimapContainer.style.display = 'block';
+            gameStarted = true;
+        });
+
+        socket.on('died', () => {
+            if (!gameStarted) return;
+            isDead = true;
+            gameStarted = false;
+            
+            hud.style.display = 'none';
+            minimapContainer.style.display = 'none';
+            menuScreen.style.display = 'flex';
+        });
+
+        socket.on('gameUpdate', (state) => {
+            gameState = state;
+        });
+
+        function joinGame() {
+            let name = document.getElementById('username-input').value.trim() || "Spinner";
+            socket.emit('respawn', { name: name });
+        }
+
+        // Input Listeners
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        window.addEventListener('mousedown', () => { if (!isDead && gameStarted) isBoosting = true; });
+        window.addEventListener('mouseup', () => isBoosting = false);
+
+        setInterval(() => {
+            if (!socket.connected || isDead || !gameStarted) return;
+            let centerX = window.innerWidth / 2;
+            let centerY = window.innerHeight / 2;
+            let angle = Math.atan2(mouseY - centerY, mouseX - centerX);
+
+            socket.emit('input', {
+                angle: angle,
+                isBoosting: isBoosting
+            });
+        }, 30);
+
+        // UI & DOM Updater Interval (~5hz)
+        const lbEntries = document.getElementById('leaderboard-entries');
+        const rpmDisplay = document.getElementById('rpm');
+
+        setInterval(() => {
+            if (!gameStarted || !gameState || !gameState.leaderboard) return;
+
+            let html = '';
+            gameState.leaderboard.forEach((entry, i) => {
+                let isMe = entry.id === socket.id;
+                html += `<div class="leaderboard-row ${isMe ? 'me' : ''}">
+                    <span>${i + 1}. ${(entry.name || 'Spinner').substring(0, 10)}</span>
+                    <span>${entry.rpm} RPM</span>
+                </div>`;
+            });
+            lbEntries.innerHTML = html;
+
+            let me = gameState.players ? gameState.players[socket.id] : null;
+            if (me && rpmDisplay) {
+                rpmDisplay.innerText = Math.floor(me.rpm || 0);
             }
-        }, { passive: false });
+        }, 200);
 
-        window.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            for (let i = 0; i < e.touches.length; i++) {
-                let touch = e.touches[i];
-                if (touch.identifier === touchJoystickId) {
-                    joystickCurrent = { x: touch.clientX, y: touch.clientY };
-                    let dx = joystickCurrent.x - joystickCenter.x;
-                    let dy = joystickCurrent.y - joystickCenter.y;
-                    if (Math.hypot(dx, dy) > 5) {
-                        targetAngle = Math.atan2(dy, dx);
+        // Main Render Loop
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameStarted) {
+                let me = gameState.players ? gameState.players[socket.id] : null;
+                let camX = me ? me.x : gameState.MAP_SIZE / 2;
+                let camY = me ? me.y : gameState.MAP_SIZE / 2;
+
+                ctx.save();
+                ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
+
+                // Draw Map Arena
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 10;
+                ctx.strokeRect(0, 0, gameState.MAP_SIZE, gameState.MAP_SIZE);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, gameState.MAP_SIZE, gameState.MAP_SIZE);
+
+                // Draw Boosters
+                if (gameState.boosters) {
+                    gameState.boosters.forEach(b => {
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+                        ctx.fill();
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = '#00ffcc';
+                        ctx.stroke();
+                        ctx.closePath();
+                    });
+                }
+
+                // Variable-Sized Value Dots (Food)
+                if (gameState.dots) {
+                    let time = Date.now() * 0.005;
+                    gameState.dots.forEach(d => {
+                        // Map dot value or size property to rendering radius (defaults to 4 if not specified)
+                        let baseRadius = d.radius || d.size || (d.value > 1 ? 7 : 4);
+                        let pulse = Math.sin(time + d.x) * 1.2;
+                        
+                        // Outer Glow Aura
+                        ctx.beginPath();
+                        ctx.arc(d.x, d.y, baseRadius + 3 + pulse, 0, Math.PI * 2);
+                        ctx.fillStyle = d.color ? d.color.replace('50%', '80%') : 'rgba(255,255,255,0.3)';
+                        ctx.fill();
+                        ctx.closePath();
+
+                        // Core Dot Body
+                        ctx.beginPath();
+                        ctx.arc(d.x, d.y, baseRadius, 0, Math.PI * 2);
+                        ctx.fillStyle = d.color || '#fff';
+                        ctx.fill();
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.stroke();
+                        ctx.closePath();
+                    });
+                }
+
+                // Draw Players & Bots
+                if (gameState.players) {
+                    for (let id in gameState.players) {
+                        drawRealisticSpinner(gameState.players[id]);
                     }
                 }
-            }
-        }, { passive: false });
-
-        window.addEventListener('touchend', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                let touch = e.changedTouches[i];
-                if (touch.identifier === touchJoystickId) {
-                    touchJoystickId = null;
-                    showJoystick = false;
-                } else if (touch.identifier === touchBoostId) {
-                    touchBoostId = null;
-                    isBoosting = false;
+                if (gameState.bots) {
+                    gameState.bots.forEach(b => {
+                        drawRealisticSpinner(b);
+                    });
                 }
-            }
-        });
 
-        window.addEventListener('touchcancel', (e) => {
-            touchJoystickId = null;
-            touchBoostId = null;
-            showJoystick = false;
-            isBoosting = false;
-        });
-
-        setInterval(() => {
-            if (amIDead) return;
-            if (Math.abs(targetAngle - lastSentAngle) > 0.02 || isBoosting !== lastSentBoost) {
-                socket.emit('input', { angle: targetAngle, isBoosting: isBoosting });
-                lastSentAngle = targetAngle;
-                lastSentBoost = isBoosting;
-            }
-        }, 16); 
-
-        deathScreen.addEventListener('click', () => socket.emit('respawn'));
-        deathScreen.addEventListener('touchstart', () => socket.emit('respawn'));
-        
-        socket.on('spawned', () => { amIDead = false; deathScreen.style.display = 'none'; });
-        socket.on('died', () => { amIDead = true; deathScreen.style.display = 'flex'; });
-        socket.on('gameUpdate', (state) => gameState = state);
-
-        setInterval(() => {
-            if (!gameState.leaderboard) return;
-            let html = '';
-            let meOnBoard = false;
-
-            for (let i = 0; i < gameState.leaderboard.length; i++) {
-                let entry = gameState.leaderboard[i];
-                let isMe = entry.id === socket.id;
-                if (isMe) meOnBoard = true;
-                html += `<div class="leaderboard-row ${isMe ? 'me' : ''}">
-                    <span>${i + 1}. ${entry.id.substring(0,6)}</span>
-                    <span>${entry.rpm}</span>
-                </div>`;
-            }
-
-            if (!meOnBoard && !amIDead && gameState.myRank && gameState.myRank.rank > 0) {
-                html += `<div class="leaderboard-divider"></div>`;
-                html += `<div class="leaderboard-row me">
-                    <span>${gameState.myRank.rank}. ${socket.id.substring(0,6)}</span>
-                    <span>${gameState.myRank.rpm}</span>
-                </div>`;
-            }
-            lbEntries.innerHTML = html;
-        }, 200); 
-
-        function drawGrid() {
-            ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
-            const size = 100;
-            ctx.beginPath();
-            for (let x = 0; x <= gameState.MAP_SIZE; x += size) { ctx.moveTo(x, 0); ctx.lineTo(x, gameState.MAP_SIZE); }
-            for (let y = 0; y <= gameState.MAP_SIZE; y += size) { ctx.moveTo(0, y); ctx.lineTo(gameState.MAP_SIZE, y); }
-            ctx.stroke();
-            ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 5;
-            ctx.strokeRect(0, 0, gameState.MAP_SIZE, gameState.MAP_SIZE);
-        }
-
-        function drawMinimap(me) {
-            const size = 100; const pad = 15;
-            const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            const mobileOffset = isMobile ? 80 : 0;
-            const mx = canvas.width - size - pad;
-            const my = canvas.height - size - pad - mobileOffset;
-            const scale = size / gameState.MAP_SIZE;
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.fillRect(mx, my, size, size);
-            ctx.strokeStyle = '#ccc'; ctx.strokeRect(mx, my, size, size);
-
-            if (gameState.minimap) {
-                gameState.minimap.forEach(dot => {
-                    ctx.fillStyle = dot[2]; ctx.fillRect(mx + dot[0] * scale, my + dot[1] * scale, 2, 2);
-                });
-            }
-            if (me) {
-                ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(mx + me.x * scale, my + me.y * scale, 3, 0, Math.PI * 2); ctx.fill();
-            }
-        }
-
-        function drawVirtualJoystick() {
-            if (!showJoystick) return;
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.beginPath();
-            ctx.arc(joystickCenter.x, joystickCenter.y, 50, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.lineWidth = 2;
-            ctx.fill();
-            ctx.stroke();
-
-            let dx = joystickCurrent.x - joystickCenter.x;
-            let dy = joystickCurrent.y - joystickCenter.y;
-            let dist = Math.hypot(dx, dy);
-            let tx = joystickCurrent.x;
-            let ty = joystickCurrent.y;
-
-            if (dist > 50) {
-                tx = joystickCenter.x + (dx / dist) * 50;
-                ty = joystickCenter.y + (dy / dist) * 50;
-            }
-
-            ctx.beginPath();
-            ctx.arc(tx, ty, 22, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 51, 102, 0.6)';
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function render() {
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            let me = gameState.players[socket.id];
-            if (me) {
-                document.getElementById('rpm').innerText = Math.floor(me.rpm);
-                let targetZoom = 1.0 / (1.0 + Math.log10(me.rpm / 40) * 0.12);
-                targetZoom = Math.max(0.75, Math.min(1.0, targetZoom)); 
-                currentZoom += (targetZoom - currentZoom) * 0.02;
-            }
-
-            let camX = me ? me.x : gameState.MAP_SIZE / 2;
-            let camY = me ? me.y : gameState.MAP_SIZE / 2;
-
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.scale(currentZoom, currentZoom);
-            ctx.translate(-camX, -camY);
-
-            drawGrid();
-
-            if (gameState.dots) {
-                gameState.dots.forEach(dot => {
-                    let radius = 4 + (Math.log10(Math.max(1, dot.value)) * 8);
-                    ctx.fillStyle = dot.color; ctx.beginPath(); ctx.arc(dot.x, dot.y, radius, 0, Math.PI * 2); ctx.fill();
-                });
-            }
-
-            const drawSpinner = (s, isMe) => {
-                ctx.save(); ctx.translate(s.x, s.y);
-                if (isMe) {
-                    ctx.beginPath(); ctx.arc(0, 0, s.radius + 40, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.03)'; ctx.lineWidth = 2; ctx.stroke();
-                }
-                ctx.rotate(s.angle); ctx.fillStyle = s.color;
-                for (let i = 0; i < 3; i++) {
-                    ctx.rotate((Math.PI * 2) / 3); ctx.beginPath(); ctx.arc(s.radius * 0.8, 0, s.radius * 0.45, 0, Math.PI * 2); ctx.fill();
-                }
-                ctx.fillStyle = isMe ? '#333' : '#999'; ctx.beginPath(); ctx.arc(0, 0, s.radius * 0.5, 0, Math.PI * 2); ctx.fill();
                 ctx.restore();
-
-                ctx.fillStyle = '#333'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText(Math.floor(s.rpm), s.x, s.y + s.radius + 20);
-            };
-
-            if (gameState.bots) gameState.bots.forEach(b => drawSpinner(b, false));
-            for (let id in gameState.players) { drawSpinner(gameState.players[id], id === socket.id); }
-
-            ctx.restore();
-            
-            drawMinimap(me);
-            drawVirtualJoystick();
+                renderMinimap(camX, camY);
+            }
 
             requestAnimationFrame(render);
         }
 
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        });
+        function drawRealisticSpinner(s) {
+            ctx.save();
+            ctx.translate(s.x, s.y);
+            ctx.rotate(s.angle || 0);
+
+            let r = s.radius || 25;
+            let baseColor = s.color || '#ff0055';
+
+            // Draw 3 Lobes (Tri-spinner design)
+            for (let i = 0; i < 3; i++) {
+                ctx.save();
+                ctx.rotate((i * Math.PI * 2) / 3);
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-r * 0.4, r * 0.7);
+                ctx.arc(0, r * 0.8, r * 0.35, Math.PI, 0, true);
+                ctx.lineTo(r * 0.4, r * 0.7);
+                ctx.fillStyle = baseColor;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                ctx.closePath();
+
+                ctx.beginPath();
+                ctx.arc(0, r * 0.8, r * 0.22, 0, Math.PI * 2);
+                ctx.fillStyle = '#111';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#00ffcc';
+                ctx.stroke();
+                ctx.closePath();
+
+                ctx.restore();
+            }
+
+            // Center Bearing Cap Core
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
+            ctx.fillStyle = '#222';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+            ctx.closePath();
+
+            // Center steel ball bearing dot
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.12, 0, Math.PI * 2);
+            ctx.fillStyle = '#00ffcc';
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.restore();
+
+            // Name and RPM Listed Below the Spinner
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${s.name || 'Spinner'}`, s.x, s.y + r + 16);
+            
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`${Math.floor(s.rpm || 0)} RPM`, s.x, s.y + r + 30);
+        }
+
+        function renderMinimap(camX, camY) {
+            minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+            let scale = minimapCanvas.width / gameState.MAP_SIZE;
+
+            minimapCtx.fillStyle = 'rgba(20, 20, 20, 0.9)';
+            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            if (gameState.minimap) {
+                gameState.minimap.forEach(m => {
+                    let mx = m[0] * scale;
+                    let my = m[1] * scale;
+                    minimapCtx.fillStyle = m[2] || '#ff0055';
+                    minimapCtx.fillRect(mx - 1.5, my - 1.5, 3, 3);
+                });
+            }
+        }
 
         requestAnimationFrame(render);
     </script>
