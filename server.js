@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
 
 // 2. Client Endpoint: Serves your actual client file if you navigate to "/play"
 app.get('/play', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname + '/index.html'));
 });
 
 
