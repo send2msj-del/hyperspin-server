@@ -42,15 +42,15 @@
     <canvas id="gameCanvas"></canvas>
 
     <!-- Load socket.io from your Tailscale Funnel server instead of locally -->
-    <script src="https://desktop-7oqct6f.taild7a6bb.ts.net/socket.io/socket.io.js"></script>
-    <script>
-        // Connect explicitly to your Tailscale Funnel domain
-        const SERVER_URL = "https://desktop-7oqct6f.taild7a6bb.ts.net";
-        const socket = io(SERVER_URL, {
-            transports: ["websocket"],
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000
-        });
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    // Automatically use the current host (works for localhost, Render, or Tailscale)
+    const SERVER_URL = window.location.origin;
+    const socket = io(SERVER_URL, {
+        transports: ["websocket", "polling"],
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000
+    });
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
